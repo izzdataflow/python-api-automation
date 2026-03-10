@@ -1,0 +1,186 @@
+automation-api-crypto
+
+1.
+
+from requests import Request, Session
+from requests.exceptions import ConnectionError, Timeout, TooManyRedirects
+import json
+
+url = 'https://pro-api.coinmarketcap.com/v1/cryptocurrency/listings/latest'
+parameters = {
+  'start':'1',
+  'limit':'5000',
+  'convert':'USD'
+}
+headers = {
+  'Accepts': 'application/json',
+  'X-CMC_PRO_API_KEY': '',
+}
+
+session = Session()
+session.headers.update(headers)
+
+try:
+  response = session.get(url, params=parameters)
+  data = json.loads(response.text)
+  print(data)
+except (ConnectionError, Timeout, TooManyRedirects) as e:
+  print(e)
+
+2.
+
+import pandas as pd
+pd.set_option('display.max_columns', None)
+pd.set_option('display.max_rows', 10)
+
+3.
+
+df = pd.json_normalize(data['data'])
+df['timestamp'] = pd.to_datetime('now')
+
+df
+
+4.
+
+df = pd.DataFrame()
+
+def api_runner(df):
+  from requests import Request, Session
+  from requests.exceptions import ConnectionError, Timeout, TooManyRedirects
+  import json
+
+  url = 'https://pro-api.coinmarketcap.com/v1/cryptocurrency/listings/latest'
+  parameters = {
+    'start':'1',
+    'limit':'15',
+    'convert':'USD'
+  }
+  headers = {
+    'Accepts': 'application/json',
+    'X-CMC_PRO_API_KEY': '50e05fb86518430cb517fa8aab3290a6',
+  }
+
+  session = Session()
+  session.headers.update(headers)
+
+  try:
+    response = session.get(url, params=parameters)
+    data = json.loads(response.text)
+    print(data)
+  except (ConnectionError, Timeout, TooManyRedirects) as e:
+    print(e)
+    
+      
+  df2 = pd.json_normalize(data['data'])
+  df2['timestamp'] = pd.to_datetime('now')
+  
+  df = pd.concat([df, df2], ignore_index = True)
+  
+  if not os.path.isfile(r'C:\Users\ACER\API.csv'):
+    df.to_csv(r'C:\Users\ACER\API.csv', index = False)
+  else:
+    df.to_csv(r'C:\Users\ACER\API.csv', mode = 'a', header = False, index = False)
+    
+  #Then to read in the file:
+  #df = pd.read_csv(r'C:\Users\ACER\API.csv')
+
+5.
+
+import os
+from time import time
+from time import sleep
+
+for i in range(5):
+    df = api_runner(df)
+    print('API Runner Completed')
+    sleep(30) #sleep for 1 minute
+print('Done.')
+
+6.
+
+df = pd.read_csv(r'C:\Users\ACER\API.csv')
+df
+
+7.
+
+#I want to see number in this case and not scientific notation
+pd.set_option('display.float_format', lambda x :  '%.5f' % x)
+
+
+8.
+
+#Look at coin trends overtime
+df3 = df.groupby('name', sort=False)[['quote.USD.percent_change_1h', 
+      'quote.USD.percent_change_24h', 'quote.USD.percent_change_7d', 
+      'quote.USD.percent_change_30d', 'quote.USD.percent_change_60d', 
+      'quote.USD.percent_change_90d']].mean()
+
+9.
+
+df4 = df3.stack()
+df4
+
+10.
+
+type(df4)
+
+11.
+
+df5 = df4.to_frame(name='values')
+df5
+
+12.
+
+df5.count()
+
+13.
+
+#Because of how it's structured above we need to set an index. I don't want to pass a column as an index for this dataframe
+#So I'm going to create a range and pass that as the dataframe. You can make this more dynamic, but I'm just going to hard code it
+
+index = pd.Index(range(90))
+
+#Set the above DataFrame index object as the index
+#df6 = df5.set_index(index)
+#df6
+
+# If it only has the index and values try doing reset_index like "df5.reset_index()"
+df6 = df5.reset_index()
+df6
+
+14.
+
+#Change the column name
+df7 = df6.rename(columns = {'level_1' : 'percent_change'})
+df7
+
+15.
+
+#Look at coin trends overtime
+df7['percent_change'] = df7['percent_change'].replace(['quote.USD.percent_change_1h', 'quote.USD.percent_change_24h', 
+    'quote.USD.percent_change_7d', 'quote.USD.percent_change_30d', 
+    'quote.USD.percent_change_60d', 'quote.USD.percent_change_90d'],
+    ['1h', '24h', '7d', '30d', '60d', '90d'])
+df7
+
+16.
+
+import seaborn as sns
+import matplotlib.pyplot as plt
+
+17.
+
+sns.catplot(x = 'percent_change', y = 'values', hue = 'name', data = df7, kind = 'point')
+
+18.
+
+# Now to do something much simpler
+# we are going to create a dataframe with the columns we want
+df10 = df[['name', 'quote.USD.price', 'timestamp']]
+df10 = df10.query("name == 'Bitcoin'")
+df10
+
+19.
+
+sns.set_theme(style = "darkgrid")
+sns.lineplot(x = 'timestamp', y = 'quote.USD.price', data = df10)
